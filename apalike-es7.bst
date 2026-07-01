@@ -240,19 +240,37 @@ FUNCTION {format.names}
   s num.names$ 'numnames :=
   numnames 'namesleft :=
     { namesleft #0 > }
-    { s nameptr "{vv }{ll}{, f.}{, jj}" format.name$ 't :=
+    { s nameptr "{vv }{ll}{, jj}{, f.}" format.name$ 't :=
       nameptr #1 >
-        { namesleft #1 >
-            { ", " * t * }
-            { numnames #2 >
-                { "," * }
-                'skip$
+        { numnames #20 >
+            { nameptr #20 =
+                { " ... " * s numnames "{vv }{ll}{, jj}{, f.}" format.name$ * 
+                  #0 'namesleft :=
+                }
+                { ", " * t * }
               if$
-              " \& " * t *    % APA 7: Siempre usa & antes del último autor
+            }
+            { namesleft #1 >
+                { ", " * t * }
+                { numnames #2 >
+                    { "," * }
+                    'skip$
+                  if$
+                  t "others" =
+                    { " \textit{et al.}" * }
+                    { t #1 text.prefix$ "I" =
+                      t #2 text.prefix$ "Hi" = or
+                        { " e " * t * }
+                        { " y " * t * }
+                      if$
+                    }
+                  if$ % <-- CORREGIDO: Un solo if$ limpio para cerrar el bloque "others"
+                }
+              if$
             }
           if$
         }
-        't
+        { t }
       if$
       nameptr #1 + 'nameptr :=
       namesleft #1 - 'namesleft :=
@@ -275,9 +293,11 @@ FUNCTION {format.key}                   % this function is just for apalike
 }
 
 FUNCTION {format.editors}
-{ editor empty$
-    { "" }
-    { editor format.names }
+{ editor num.names$ 'numnames :=
+  editor format.names % Usa la lógica de nombres que ya actualizamos (con "y/e")
+  numnames #1 >
+    { " (Eds.)" * }
+    { " (Ed.)" * }
   if$
 }
 
@@ -441,7 +461,7 @@ FUNCTION {format.in.ed.booktitle}
     { "" }
     { editor empty$
         { "En " booktitle emphasize * }
-        { "En " format.editors * ", " * booktitle emphasize * }
+        { "En " format.editors * ". " * booktitle emphasize * } % <-- Cambiado a ". " para APA 7
       if$
     }
   if$
@@ -493,14 +513,14 @@ FUNCTION {format.doi.or.url}
 { doi empty$
     { url empty$
         { "" }
-        { url }
+        { "\url{" url * "}" * } % Envuelve la URL
       if$
     }
     { % Comprobamos si el campo DOI ya viene con el link completo en el .bib
       doi #1 #8 substring$ "https://" =
       doi #1 #7 substring$ "http://" = or
-        { doi }
-        { "https://doi.org/" doi * }
+        { "\url{" doi * "}" * } % Envuelve el DOI si ya trae http/https
+        { "\url{https://doi.org/" doi * "}" * } % Envuelve el DOI generado
       if$
     }
   if$
@@ -517,23 +537,37 @@ FUNCTION {article}
   new.block
   journal emphasize "journal" output.check
   volume empty$
-    { "" }
-    { volume emphasize }
+    { number empty$
+        { "" }
+        { "(" number * ")" * }
+      if$
+    }
+    { number empty$
+        { volume emphasize }
+        { volume emphasize "(" * number * ")" * }
+      if$
+    }
   if$
-  number empty$
+    pages empty$
     'skip$
-    { "(" * number * ")" * }
+    { volume empty$ number empty$ and
+        { pages n.dashify * }
+        { ", " * pages n.dashify * }
+      if$
+    }
   if$
-  pages empty$
-    'skip$
-    { ", " * pages n.dashify * }
+  duplicate$ empty$
+    'pop$
+    'output
   if$
-  output
+    new.block
+  note output
   new.block
   format.doi.or.url output
-  new.block
-  note output
-  fin.entry
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 
@@ -553,20 +587,25 @@ FUNCTION {book}
   output.year.check
   new.block
   format.btitle "title" output.check
+  format.edition output % <-- MOVIDO AQUÍ: La edición va inmediatamente después del título
   crossref missing$
     { new.block
-      publisher "publisher" output.check % APA 7: Ya no se incluye la ubicación/ciudad
+      publisher "publisher" output.check
     }
     { new.block
       format.book.crossref output.nonnull
     }
   if$
-  format.edition output
+  new.block
+  note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  new.block
-  note output
-  fin.entry
+  
+  % --- TRUCO APA 7: ABSORBER EL PUNTO FINAL ---
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {inbook}
@@ -585,15 +624,25 @@ FUNCTION {inbook}
   output.year.check
   new.block
   format.btitle "title" output.check
+  format.chapter.pages output % <-- MOVIDO AQUÍ: Capítulo/Páginas van pegados al título
+  crossref missing$
+    { new.block
+      publisher "publisher" output.check
+    }
+    { new.block
+      format.book.crossref output.nonnull
+    }
+  if$
   new.block
-  format.chapter.pages output
-  new.block
-  publisher "publisher" output.check % APA 7: Sin ciudad de edición
+  note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  new.block
-  note output
-  fin.entry
+  
+  % --- TRUCO APA 7: ABSORBER EL PUNTO FINAL ---
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {incollection}
@@ -607,14 +656,17 @@ FUNCTION {incollection}
   format.in.ed.booktitle "booktitle" output.check
   format.bvolume output
   format.number.series output
-  format.chapter.pages output
+  format.chapter.pages output % Las páginas y el volumen van pegados al título del libro
   new.block
-  publisher "publisher" output.check % APA 7: Sin ciudad
+  publisher "publisher" output.check
+  new.block
+  note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace
   new.block
   format.doi.or.url output
-  new.block
-  note output
-  fin.entry
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {inproceedings}
@@ -630,8 +682,6 @@ FUNCTION {inproceedings}
       format.bvolume output
       format.number.series output
       format.pages output
-      % APA 7: Se omite la ciudad/address del congreso. 
-      % Dejamos organization u organizador si existe, seguido de los bloques correspondientes.
       new.sentence
       organization output
       publisher output
@@ -641,10 +691,13 @@ FUNCTION {inproceedings}
     }
   if$
   new.block
-  format.doi.or.url output
+  note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
-  note output
-  fin.entry
+  format.doi.or.url output
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {conference} { inproceedings }
@@ -656,13 +709,21 @@ FUNCTION {mastersthesis}
   output.year.check
   new.block
   format.btitle "title" output.check
+    % --- NUEVO BLOQUE APA 7: CORCHETES INTEGRADOS ---
+  school empty$
+    { " [Tesis de maestría]" * output }
+    { " [Tesis de maestría, " school * "]" * output }
+  if$
+  
   new.block
-  " [Tesis de máster, " school * "]" * output.nonnull
+  note output % <-- Las notas o repositorio van antes del enlace
   new.block
   format.doi.or.url output
-  new.block
-  note output
-  fin.entry
+    % --- TRUCO APA 7: ABSORBER EL PUNTO FINAL ---
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {phdthesis}
@@ -672,29 +733,41 @@ FUNCTION {phdthesis}
   output.year.check
   new.block
   format.btitle "title" output.check
+  % --- BLOQUE APA 7: CORCHETES INTEGRADOS ---
+  school empty$
+    { " [Tesis doctoral]" * output }
+    { " [Tesis doctoral, " school * "]" * output }
+  if$
   new.block
-  " [Tesis doctoral, " school * "]" * output.nonnull
+  note output % <-- Las notas o repositorio van antes del enlace
   new.block
   format.doi.or.url output
-  new.block
-  note output
-  fin.entry
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
-
 FUNCTION {techreport}
 { output.bibitem
   format.authors "author" output.check
   author format.key output
   output.year.check
   new.block
-  format.title "title" output.check
+  format.btitle "title" output.check
+  number empty$
+    'skip$
+    { " (Informe N.º " number * ")" * output }
+  if$
   new.block
   institution "institution" output.check
   new.block
-  format.doi.or.url output
-  new.block
   note output
-  fin.entry
+  new.block
+  format.doi.or.url output
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {manual}
@@ -704,15 +777,17 @@ FUNCTION {manual}
   output.year.check
   new.block
   format.btitle "title" output.check
-  organization address new.block.checkb
+  format.edition output % <-- MOVIDO AQUÍ: La edición/versión va pegada al título
+  new.block
   organization output
-  % APA 7: Se prefiere omitir ubicaciones físicas si la organización es clara
-  format.edition output
+  new.block
+  note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  new.block
-  note output
-  fin.entry
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {booklet}
@@ -721,14 +796,17 @@ FUNCTION {booklet}
   author format.key output
   output.year.check
   new.block
-  format.title "title" output.check
+  format.btitle "title" output.check % <-- CAMBIADO A CURSIVA: format.btitle
   new.block
   howpublished output
   new.block
-  format.doi.or.url output
+  note output % <-- Las notas van antes del enlace final
   new.block
-  note output
-  fin.entry
+  format.doi.or.url output
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {misc}
@@ -741,10 +819,13 @@ FUNCTION {misc}
   new.block
   howpublished output
   new.block
-  format.doi.or.url output
-  new.block
   note output
-  fin.entry
+  new.block
+  format.doi.or.url output
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry } % El string vacío absorbe el punto final de fin.entry
+  if$
 }
 
 FUNCTION {unpublished}
@@ -753,37 +834,31 @@ FUNCTION {unpublished}
   author format.key output
   output.year.check
   new.block
-  format.title "title" output.check
+  format.btitle "title" output.check % <-- CAMBIADO A CURSIVA: format.btitle
   new.block
-  note "note" output.check
-  fin.entry
+  note "note" output.check % Aquí suele ir "Manuscrito inédito" o "Manuscrito en preparación"
+  new.block
+  format.doi.or.url output % <-- NUEVO: Permite añadir el enlace si está en un repositorio/preprint
+  doi empty$ url empty$ and
+    { fin.entry }
+    { "" fin.entry }
+  if$
 }
 
 FUNCTION {default.type} { misc }
 
-MACRO {jan} {"January"}
-
-MACRO {feb} {"February"}
-
-MACRO {mar} {"March"}
-
-MACRO {apr} {"April"}
-
-MACRO {may} {"May"}
-
-MACRO {jun} {"June"}
-
-MACRO {jul} {"July"}
-
-MACRO {aug} {"August"}
-
-MACRO {sep} {"September"}
-
-MACRO {oct} {"October"}
-
-MACRO {nov} {"November"}
-
-MACRO {dec} {"December"}
+MACRO {jan} {"enero"}
+MACRO {feb} {"febrero"}
+MACRO {mar} {"marzo"}
+MACRO {apr} {"abril"}
+MACRO {may} {"mayo"}
+MACRO {jun} {"junio"}
+MACRO {jul} {"julio"}
+MACRO {aug} {"agosto"}
+MACRO {sep} {"septiembre"}
+MACRO {oct} {"octubre"}
+MACRO {nov} {"noviembre"}
+MACRO {dec} {"diciembre"}
 
 MACRO {acmcs} {"ACM Computing Surveys"}
 
@@ -850,27 +925,19 @@ FUNCTION {chop.word}
 %
 FUNCTION {format.lab.names}
 { 's :=
-  s #1 "{vv }{ll}" format.name$
-  s num.names$ duplicate$
-  #3 >
-    { pop$ " \textit{et al.}" * }
-    { #2 <
-        'skip$
-        { s #2 "{ff }{vv }{ll}{ jj}" format.name$ "others" =
-            { " \textit{et al.}" * }
-               s #2 "{ll}" format.name$ 'u :=
-               { u #1 text.prefix$ "I" =
-	          { " \& " * s #2 "{vv }{ll}" format.name$ * }
-	          { " \&" * s #2 "{vv }{ll}" format.name$ * }
-	       } if$
-          if$
+  s num.names$ 'numnames :=
+  numnames #2 >
+    { s #1 "{vv }{ll}" format.name$ " \textit{et al.}" * }
+    { numnames #2 =
+        { s #1 "{vv }{ll}" format.name$
+          " y " *
+          s #2 "{vv }{ll}" format.name$ *
         }
+        { s #1 "{vv }{ll}" format.name$ }
       if$
     }
   if$
 }
-
-
 
 FUNCTION {author.key.label}
 { author empty$
