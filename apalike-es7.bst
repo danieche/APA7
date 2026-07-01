@@ -173,6 +173,7 @@ FUNCTION {fin.entry}
   newline$
 }
 
+
 FUNCTION {new.block}
 { output.state before.all =
     'skip$
@@ -208,6 +209,14 @@ FUNCTION {or}
     'skip$
   if$
 }
+
+FUNCTION {fin.entry.apa7} %sugerido por la IA
+{ doi empty$ url empty$ and
+    { fin.entry }
+    { write$ newline$ }
+  if$
+}
+
 
 FUNCTION {new.block.checkb}
 { empty$
@@ -564,10 +573,7 @@ FUNCTION {article}
   note output
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 
@@ -600,12 +606,7 @@ FUNCTION {book}
   note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  
-  % --- TRUCO APA 7: ABSORBER EL PUNTO FINAL ---
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {inbook}
@@ -637,12 +638,7 @@ FUNCTION {inbook}
   note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  
-  % --- TRUCO APA 7: ABSORBER EL PUNTO FINAL ---
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {incollection}
@@ -663,10 +659,7 @@ FUNCTION {incollection}
   note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {inproceedings}
@@ -694,10 +687,7 @@ FUNCTION {inproceedings}
   note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {conference} { inproceedings }
@@ -719,11 +709,7 @@ FUNCTION {mastersthesis}
   note output % <-- Las notas o repositorio van antes del enlace
   new.block
   format.doi.or.url output
-    % --- TRUCO APA 7: ABSORBER EL PUNTO FINAL ---
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {phdthesis}
@@ -742,10 +728,7 @@ FUNCTION {phdthesis}
   note output % <-- Las notas o repositorio van antes del enlace
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 FUNCTION {techreport}
 { output.bibitem
@@ -764,10 +747,7 @@ FUNCTION {techreport}
   note output
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {manual}
@@ -784,10 +764,7 @@ FUNCTION {manual}
   note output % <-- MOVIDO AQUÍ: Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {booklet}
@@ -803,10 +780,7 @@ FUNCTION {booklet}
   note output % <-- Las notas van antes del enlace final
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {misc}
@@ -822,10 +796,7 @@ FUNCTION {misc}
   note output
   new.block
   format.doi.or.url output
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry } % El string vacío absorbe el punto final de fin.entry
-  if$
+fin.entry.apa7
 }
 
 FUNCTION {unpublished}
@@ -839,10 +810,21 @@ FUNCTION {unpublished}
   note "note" output.check % Aquí suele ir "Manuscrito inédito" o "Manuscrito en preparación"
   new.block
   format.doi.or.url output % <-- NUEVO: Permite añadir el enlace si está en un repositorio/preprint
-  doi empty$ url empty$ and
-    { fin.entry }
-    { "" fin.entry }
-  if$
+fin.entry.apa7
+}
+
+FUNCTION {legislation}
+{ output.bibitem
+  format.authors output
+  author format.key output
+  output.year.check
+  new.block
+  format.btitle "title" output.check
+  new.block
+  note output
+  new.block
+  format.doi.or.url output
+  fin.entry.apa7
 }
 
 FUNCTION {default.type} { misc }
